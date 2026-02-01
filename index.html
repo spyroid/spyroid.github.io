@@ -1,22 +1,184 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#000000">
     <title>Kepler-22b</title>
     <style>
-        body {
-            background-image: linear-gradient(to top, #30cfd0 0%, #330867 100%);
+        :root {
+            color-scheme: only light !important;
+        }
+
+        body, html {
             margin: 0;
             padding: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            background: #000000 linear-gradient(#000000, #000000) !important;
+            display: grid;
         }
-        img {
-            filter: drop-shadow(5px 5px 50px #222);
+
+        canvas {
+            display: grid;
+            background: #000000 !important;
+            image-rendering: pixelated;
+            isolation: isolate;
+            color: #ffffff !important;
+            position: relative;
+        }
+
+        #planet {
+            position: absolute;
+            z-index: 10;
+            display: grid;
+            width: 100%;
+            height: 100%;
+            justify-content: center;
+            align-content: center;
+        }
+
+        #planet img {
+            transform: scale(0.5);
+        }
+
+        #world {
+            position: relative;
+            display: grid;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            justify-content: center;
         }
     </style>
 </head>
 <body>
-<div style="display:grid; align-items:center; justify-content:center; height:100vh">
-    <img src="kepler.png" alt="Kepler-22b"/>
+<div id="world">
+    <div id="planet">
+        <img src="kepler.png" alt="Kepler-22b"/>
+    </div>
+
+    <canvas id="c"></canvas>
 </div>
+
+<script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+
+    let w, h;
+
+    function resize() {
+        w = canvas.width = window.innerWidth - 1;
+        h = canvas.height = window.innerHeight - 1;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    const STAR_COUNT = 300;
+    const SPEED = 0.3;
+    const SHOOTING_STAR_CHANCE = 0.0008;
+
+    class Star {
+        constructor() {
+            this.reset();
+        }
+
+        reset() {
+            this.x = Math.random() * w - w / 2;
+            this.y = Math.random() * h - h / 2;
+            this.z = Math.random() * 1500 + 500;
+            this.baseSize = Math.random() * 1.1 + 0.4;
+            this.brightness = Math.random() * 0.5 + 0.5;
+        }
+
+        update() {
+            this.z -= SPEED * 8;
+            if (this.z <= 0) this.reset();
+        }
+
+        draw() {
+            const scale = 1000 / this.z;
+            const px = this.x * scale + w / 2;
+            const py = this.y * scale + h / 2;
+
+            if (px < 0 || px > w || py < 0 || py > h) return;
+
+            const size = this.baseSize * scale;
+            const opacity = this.brightness * (1 - this.z / 2000);
+
+            ctx.beginPath();
+            ctx.arc(px, py, size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+            ctx.shadowBlur = size * 2;
+            ctx.shadowColor = 'white';
+            ctx.fill();
+
+            if (Math.random() < 0.01) {
+                ctx.globalAlpha = 0.9;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+    }
+
+    const stars = Array.from({length: STAR_COUNT}, () => new Star());
+
+    let shooting = null;
+
+    function createShootingStar() {
+        shooting = {
+            x: Math.random() * w,
+            y: -50,
+            len: Math.random() * 80 + 40,
+            speed: Math.random() * 12 + 10,
+            brightness: 1
+        };
+    }
+
+    function animate() {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = 'rgba(0,0,0,1)';
+        ctx.globalAlpha = 0.5;
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+
+        stars.forEach(s => {
+            s.update();
+            s.draw();
+        });
+
+        // Падающая звезда
+        if (Math.random() < SHOOTING_STAR_CHANCE && !shooting) {
+            createShootingStar();
+        }
+
+        if (shooting) {
+            ctx.beginPath();
+            ctx.moveTo(shooting.x, shooting.y);
+            ctx.lineTo(shooting.x - 4, shooting.y + shooting.len);
+            ctx.strokeStyle = `rgba(255, 255, 255, ${shooting.brightness})`;
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = 'white';
+            ctx.stroke();
+
+            shooting.y += shooting.speed;
+            shooting.brightness -= 0.025;
+
+            if (shooting.y > h + 100 || shooting.brightness <= 0) {
+                shooting = null;
+            }
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    animate();
+</script>
 </body>
 </html>
